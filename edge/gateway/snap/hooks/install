@@ -1,0 +1,10 @@
+#!/bin/sh
+# Snap install hook: creates data directories and default SQLite database
+mkdir -p "$SNAP_COMMON/data"
+mkdir -p "$SNAP_COMMON/config"
+mkdir -p "$SNAP_COMMON/models"
+
+if [ ! -f "$SNAP_COMMON/config/gateway.yaml" ]; then
+    cp "$SNAP/config/gateway.yaml" "$SNAP_COMMON/config/gateway.yaml"
+fi
+exit 0

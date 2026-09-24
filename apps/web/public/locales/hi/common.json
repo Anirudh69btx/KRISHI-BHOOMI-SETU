@@ -1,0 +1,67 @@
+{
+  "app_name": "FLIP — कृषि भूमि सेतु",
+  "tagline": "स्मार्ट खेती मंच",
+  "loading": "लोड हो रहा है...",
+  "error": "कुछ गलत हो गया",
+  "retry": "पुनः प्रयास करें",
+  "cancel": "रद्द करें",
+  "save": "सहेजें",
+  "delete": "हटाएं",
+  "confirm": "पुष्टि करें",
+  "back": "वापस",
+  "next": "अगला",
+  "close": "बंद करें",
+  "search": "खोजें",
+  "filter": "फ़िल्टर",
+  "export": "निर्यात",
+  "refresh": "ताज़ा करें",
+  "online": "ऑनलाइन",
+  "offline": "ऑफ़लाइन — स्थानीय रूप से काम कर रहा है",
+  "syncing": "{{count}} क्रिया(एं) सिंक हो रही हैं...",
+  "nav": {
+    "dashboard": "डैशबोर्ड",
+    "farms": "मेरे खेत",
+    "advisories": "सलाहें",
+    "weather": "मौसम",
+    "market": "बाज़ार मूल्य",
+    "disaster": "आपदा अलर्ट",
+    "settings": "सेटिंग्स",
+    "copilot": "किसान कोपायलट"
+  },
+  "auth": {
+    "login": "लॉगिन",
+    "logout": "लॉगआउट",
+    "welcome": "स्वागत है, {{name}}",
+    "signing_in": "लॉगिन हो रहा है..."
+  },
+  "farm": {
+    "select": "खेत चुनें",
+    "no_farms": "कोई खेत नहीं मिला",
+    "area": "क्षेत्रफल",
+    "crop": "फसल",
+    "district": "जिला",
+    "state": "राज्य"
+  },
+  "sensor": {
+    "temperature": "तापमान",
+    "humidity": "आर्द्रता",
+    "soil_moisture": "मिट्टी की नमी",
+    "ph": "पीएच",
+    "nitrogen": "नाइट्रोजन",
+    "phosphorus": "फॉस्फोरस",
+    "potassium": "पोटैशियम",
+    "rainfall": "वर्षा",
+    "light": "प्रकाश",
+    "battery": "बैटरी",
+    "last_seen": "अंतिम बार देखा {{time}}"
+  },
+  "units": {
+    "celsius": "°C",
+    "percent": "%",
+    "ppm": "पीपीएम",
+    "lux": "लक्स",
+    "mm": "मिमी",
+    "hectare": "हेक्टेयर",
+    "volt": "वोल्ट"
+  }
+}

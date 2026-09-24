@@ -1,0 +1,645 @@
+﻿version: "3.9"
+
+# ============================================================
+# FLIP v3.0 â€” Local Development Stack (Docker Compose)
+# Profiles: minimal (default), full, gpu
+# ============================================================
+
+services:
+  # ---------------------------------------------------------
+  # DATABASE: Supabase Stack (Postgres + Timescale + PostGIS + pgvector + PgBouncer + Studio)
+  # ---------------------------------------------------------
+  postgres:
+    image: timescale/timescaledb:latest-pg16
+    container_name: flip-postgres
+    profiles: ["minimal", "full", "gpu"]
+    environment:
+      POSTGRES_DB: flip
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      TIMESCALEDB_TELEMETRY: "off"
+    command: >
+      postgres -c shared_preload_libraries=timescaledb,pg_stat_statements,pg_cron
+               -c max_connections=200
+               -c timescaledb.max_background_workers=8
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/db/migrations:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d flip"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: "4G"
+        reservations:
+          cpus: "0.5"
+          memory: "1G"
+
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: flip-pgbouncer
+    profiles: ["minimal", "full", "gpu"]
+    environment:
+      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/flip"
+      POOL_MODE: "transaction"
+      MAX_CLIENT_CONN: "100"
+      DEFAULT_POOL_SIZE: "20"
+    ports:
+      - "6432:6432"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  supabase-studio:
+    image: supabase/studio:20240701
+    container_name: flip-supabase-studio
+    profiles: ["full"]
+    environment:
+      SUPABASE_URL: "http://kong:8000"
+      SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZsaXAtbG9jYWwiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTcxNzAwMDAwMCwiZXhwIjoyMDMyNTc2MDAwfQ.dev_key_change_in_prod"
+    ports:
+      - "3002:3000"
+    depends_on:
+      - kong
+
+  # ---------------------------------------------------------
+  # OBJECT STORAGE: MinIO (S3 API)
+  # ---------------------------------------------------------
+  minio:
+    image: minio/minio:RELEASE.2024-07-26
+    container_name: flip-minio
+    profiles: ["minimal", "full", "gpu"]
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_PROMETHEUS_AUTH_TYPE: "public"
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          memory: "2G"
+
+  minio-init:
+    image: minio/mc:RELEASE.2024-07-26
+    container_name: flip-minio-init
+    profiles: ["minimal", "full", "gpu"]
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 minioadmin minioadmin &&
+      mc mb --ignore-existing local/flip-models local/flip-images local/flip-tiles local/flip-firmware local/flip-assets local/flip-backups &&
+      mc anonymous set download local/flip-tiles || true
+      "
+
+  # ---------------------------------------------------------
+  # MESSAGE BUS: NATS JetStream
+  # ---------------------------------------------------------
+  nats:
+    image: nats:2.10-alpine
+    container_name: flip-nats
+    profiles: ["minimal", "full", "gpu"]
+    command: "-js -sd /data -m 8222 -DV"
+    volumes:
+      - nats_data:/data
+    ports:
+      - "4222:4222"  # Client
+      - "6222:6222"  # Cluster
+      - "8222:8222"  # Monitoring
+    healthcheck:
+      test: ["CMD", "nats", "server", "check", "jetstream"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------
+  # MQTT BROKER: EMQX (mTLS, Rule Engine -> NATS)
+  # ---------------------------------------------------------
+  emqx:
+    image: emqx/emqx:5.6
+    container_name: flip-emqx
+    profiles: ["minimal", "full", "gpu"]
+    environment:
+      EMQX_NAME: "emqx@localhost"
+      EMQX_DASHBOARD__DEFAULT_USERNAME: "admin"
+      EMQX_DASHBOARD__DEFAULT_PASSWORD: "public"
+      EMQX_LOG__CONSOLE_HANDLER__LEVEL: "info"
+      EMQX_MQTT__MAX_PACKET_SIZE: "1MB"
+      EMQX_BRIDGE__MQTT__NATS__ADDRESS: "nats:4222"
+      EMQX_BRIDGE__MQTT__NATS__PROTO_VER: "4"
+      EMQX_BRIDGE__MQTT__NATS__FORWARD_MQTT_TO_NATS: "farm.#"
+      EMQX_BRIDGE__MQTT__NATS__FORWARD_NATS_TO_MQTT: "farm.#"
+    volumes:
+      - emqx_data:/opt/emqx/data
+      - emqx_etc:/opt/emqx/etc
+      - ./infra/emqx/emqx.conf:/opt/emqx/etc/emqx.conf:ro
+    ports:
+      - "1883:1883"   # MQTT
+      - "8883:8883"   # MQTT/TLS (mTLS)
+      - "8083:8083"   # WS
+      - "18083:18083" # Dashboard
+    healthcheck:
+      test: ["CMD", "emqx_ctl", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      - nats
+
+  # ---------------------------------------------------------
+  # API GATEWAY: Kong (Declarative Config)
+  # ---------------------------------------------------------
+  kong:
+    image: kong:3.6
+    container_name: flip-kong
+    profiles: ["minimal", "full", "gpu"]
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: "/kong/kong.yml"
+      KONG_PROXY_ACCESS_LOG: "/dev/stdout"
+      KONG_ADMIN_ACCESS_LOG: "/dev/stdout"
+      KONG_PROXY_ERROR_LOG: "/dev/stderr"
+      KONG_ADMIN_ERROR_LOG: "/dev/stderr"
+      KONG_ADMIN_LISTEN: "0.0.0.0:8001"
+      KONG_PLUGINS: "request-transformer,response-transformer,correlation-id,jwt,rate-limiting"
+    volumes:
+      - ./services/api-gateway/kong.yml:/kong/kong.yml:ro
+    ports:
+      - "8000:8000"   # Proxy
+      - "8443:8443"   # Proxy SSL
+      - "8001:8001"   # Admin
+      - "8444:8444"   # Admin SSL
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      - core-api
+      - tile-server
+      - alert-engine
+
+  # ---------------------------------------------------------
+  # CORE API: FastAPI + Strawberry GraphQL
+  # ---------------------------------------------------------
+  core-api:
+    build:
+      context: ./services/core-api
+      dockerfile: Dockerfile
+      target: development
+    container_name: flip-core-api
+    profiles: ["minimal", "full", "gpu"]
+    environment:
+      FLIP_ENV: "local"
+      FLIP_API_URL: "http://localhost:8000"
+      FLIP_WS_URL: "ws://localhost:8000/ws"
+      DATABASE_URL: "postgresql+asyncpg://postgres:postgres@pgbouncer:6432/flip"
+      DATABASE_URL_SYNC: "postgresql://postgres:postgres@postgres:5432/flip"
+      NATS_URL: "nats://nats:4222"
+      REDIS_URL: "redis://redis:6379/0"
+      KEYCLOAK_URL: "http://keycloak:8080"
+      KEYCLOAK_REALM: "flip"
+      KEYCLOAK_CLIENT_ID: "flip-api"
+      KEYCLOAK_CLIENT_SECRET: "dev-secret"
+      MLFLOW_TRACKING_URI: "http://mlflow:5000"
+      MINIO_ENDPOINT: "minio:9000"
+      MINIO_ACCESS_KEY: "minioadmin"
+      MINIO_SECRET_KEY: "minioadmin"
+      TEMPORAL_ADDRESS: "temporal:7233"
+      TEMPORAL_NAMESPACE: "flip"
+      LOG_LEVEL: "DEBUG"
+    volumes:
+      - ./services/core-api/src:/app/src
+      - ./services/core-api/alembic:/app/alembic
+      - ./packages/shared-types/python:/app/shared_types
+    # Core API is accessed exclusively through Kong API Gateway on host port 8000
+    expose:
+      - "8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_started
+      nats:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      temporal:
+        condition: service_healthy
+
+  # ---------------------------------------------------------
+  # CACHE / REDIS
+  # ---------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: flip-redis
+    profiles: ["minimal", "full", "gpu"]
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ---------------------------------------------------------
+  # WORKFLOWS: Temporal.io
+  # ---------------------------------------------------------
+  temporal:
+    image: temporalio/auto-setup:1.25
+    container_name: flip-temporal
+    profiles: ["minimal", "full", "gpu"]
+    environment:
+      DB: "postgres"
+      DB_PORT: "5432"
+      POSTGRES_USER: "postgres"
+      POSTGRES_PWD: "postgres"
+      POSTGRES_DB: "temporal"
+      DYNAMIC_CONFIG_FILE_PATH: "/etc/temporal/config/dynamicconfig.yaml"
+      TEMPORAL_CLI_ADDRESS: "0.0.0.0:7233"
+    volumes:
+      - temporal_data:/var/lib/temporal
+      - ./infra/temporal/dynamicconfig.yaml:/etc/temporal/config/dynamicconfig.yaml:ro
+    ports:
+      - "7233:7233"   # gRPC
+      - "8233:8233"   # Web UI
+    healthcheck:
+      test: ["CMD", "temporal", "cluster", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  temporal-ui:
+    image: temporalio/ui:2.30
+    container_name: flip-temporal-ui
+    profiles: ["full"]
+    environment:
+      TEMPORAL_ADDRESS: "temporal:7233"
+      TEMPORAL_CORS_ORIGINS: "http://localhost:5173,http://localhost:3000"
+    ports:
+      - "8234:8080"
+    depends_on:
+      - temporal
+
+  # ---------------------------------------------------------
+  # TILE SERVER: Martin (PostGIS -> MVT)
+  # ---------------------------------------------------------
+  tile-server:
+    image: ghcr.io/maplibre/martin:0.12
+    container_name: flip-martin
+    profiles: ["minimal", "full", "gpu"]
+    environment:
+      POSTGRES_CONNECTION: "postgresql://postgres:postgres@pgbouncer:6432/flip"
+      WATCH_CONFIG: "true"
+      CACHE_SIZE: "512MB"
+      MAX_FEATURES: "50000"
+    volumes:
+      - ./services/tile-server/config.toml:/config.toml:ro
+      - martin_cache:/cache
+    ports:
+      - "3000:3000"
+    command: ["--config", "/config.toml", "--cache", "/cache"]
+    depends_on:
+      pgbouncer:
+        condition: service_started
+
+  # ---------------------------------------------------------
+  # AUTH: Keycloak
+  # ---------------------------------------------------------
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    container_name: flip-keycloak
+    profiles: ["minimal", "full", "gpu"]
+    command: start-dev --import-realm --http-enabled=true --hostname=localhost --proxy=edge
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: "jdbc:postgresql://postgres:5432/keycloak"
+      KC_DB_USERNAME: postgres
+      KC_DB_PASSWORD: postgres
+      KC_HOSTNAME: localhost
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY: "edge"
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+      - ./infra/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+      - ./infra/keycloak/spi/otp-sms-provider/target/otp-sms-provider.jar:/opt/keycloak/providers/otp-sms-provider.jar:ro
+    ports:
+      - "8080:8080"
+      - "8443:8443"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ---------------------------------------------------------
+  # DIALOGUE: Rasa Open Source
+  # ---------------------------------------------------------
+  rasa:
+    build:
+      context: ./services/dialogue-manager
+      dockerfile: Dockerfile
+      target: development
+    container_name: flip-rasa
+    profiles: ["full"]
+    environment:
+      RASA_ACTIONS_URL: "http://rasa-actions:5055/webhook"
+      REDIS_URL: "redis://redis:6379/1"
+      CORE_API_URL: "http://core-api:8000/graphql"
+    volumes:
+      - ./services/dialogue-manager/data:/app/data:ro
+      - ./services/dialogue-manager/actions:/app/actions:ro
+      - ./services/dialogue-manager/config.yml:/app/config.yml:ro
+      - ./services/dialogue-manager/endpoints.yml:/app/endpoints.yml:ro
+    ports:
+      - "5005:5005"
+    depends_on:
+      - core-api
+      - redis
+
+  rasa-actions:
+    build:
+      context: ./services/dialogue-manager
+      dockerfile: Dockerfile
+      target: actions
+    container_name: flip-rasa-actions
+    profiles: ["full"]
+    environment:
+      CORE_API_URL: "http://core-api:8000/graphql"
+    volumes:
+      - ./services/dialogue-manager/actions:/app/actions:ro
+
+  # ---------------------------------------------------------
+  # ALERT ENGINE: Node.js (Fastify)
+  # ---------------------------------------------------------
+  alert-engine:
+    build:
+      context: ./services/alert-engine
+      dockerfile: Dockerfile
+      target: development
+    container_name: flip-alert-engine
+    profiles: ["minimal", "full", "gpu"]
+    environment:
+      FLIP_ENV: "local"
+      NATS_URL: "nats://nats:4222"
+      REDIS_URL: "redis://redis:6379/2"
+      CORE_API_URL: "http://core-api:8000/graphql"
+    volumes:
+      - ./services/alert-engine/src:/app/src
+      - ./packages/shared-types/ts:/app/shared_types
+    ports:
+      - "3001:3001"
+    depends_on:
+      - nats
+      - redis
+      - core-api
+
+  # ---------------------------------------------------------
+  # MLFLOW: Model Registry
+  # ---------------------------------------------------------
+  mlflow:
+    build:
+      context: ./services/model-registry/mlflow
+      dockerfile: Dockerfile
+    container_name: flip-mlflow
+    profiles: ["full", "gpu"]
+    environment:
+      MLFLOW_TRACKING_URI: "http://localhost:5000"
+      MLFLOW_S3_ENDPOINT_URL: "http://minio:9000"
+      AWS_ACCESS_KEY_ID: "minioadmin"
+      AWS_SECRET_ACCESS_KEY: "minioadmin"
+      BACKEND_STORE_URI: "postgresql://postgres:postgres@postgres:5432/mlflow"
+      ARTIFACT_ROOT: "s3://flip-models/mlflow"
+    volumes:
+      - mlflow_data:/mlflow
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+  # ---------------------------------------------------------
+  # FRONTEND: Vite Dev Server (HMR)
+  # ---------------------------------------------------------
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+      target: development
+    container_name: flip-web
+    profiles: ["minimal", "full", "gpu"]
+    environment:
+      VITE_API_URL: "http://localhost:8000"
+      VITE_WS_URL: "ws://localhost:8000/ws"
+      VITE_TILE_URL: "http://localhost:3000"
+      VITE_KEYCLOAK_URL: "http://localhost:8080"
+      VITE_KEYCLOAK_REALM: "flip"
+      VITE_KEYCLOAK_CLIENT_ID: "flip-web"
+      VITE_ENABLE_WASM_VOICE: "true"
+      VITE_ENABLE_WASM_COPILOT: "true"
+      VITE_ENABLE_3D_FARM: "true"
+      VITE_ENABLE_DISASTER_SIREN: "true"
+    volumes:
+      - ./apps/web:/app:cached
+      - /app/node_modules
+      - /app/.vite
+    ports:
+      - "5173:5173"
+      - "5174:5174"
+    depends_on:
+      - core-api
+      - tile-server
+      - keycloak
+    stdin_open: true
+    tty: true
+
+  # ---------------------------------------------------------
+  # OBSERVABILITY: Grafana, Loki, Tempo, Prometheus
+  # ---------------------------------------------------------
+  grafana:
+    image: grafana/grafana:11.1
+    container_name: flip-grafana
+    profiles: ["full"]
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Viewer"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infra/monitoring/grafana-dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./infra/monitoring/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
+    ports:
+      - "3003:3000"
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+
+  prometheus:
+    image: prom/prometheus:v2.53
+    container_name: flip-prometheus
+    profiles: ["full"]
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.enable-lifecycle"
+    volumes:
+      - prometheus_data:/prometheus
+      - ./infra/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/monitoring/prometheus-rules:/etc/prometheus/rules:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - core-api
+      - nats
+      - emqx
+      - temporal
+
+  loki:
+    image: grafana/loki:2.9
+    container_name: flip-loki
+    profiles: ["full"]
+    command: "-config.file=/etc/loki/local-config.yaml"
+    volumes:
+      - loki_data:/loki
+      - ./infra/monitoring/loki-config.yaml:/etc/loki/local-config.yaml:ro
+    ports:
+      - "3100:3100"
+    depends_on:
+      - prometheus
+
+  promtail:
+    image: grafana/promtail:2.9
+    container_name: flip-promtail
+    profiles: ["full"]
+    volumes:
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - ./infra/monitoring/promtail-config.yaml:/etc/promtail/config.yml:ro
+    depends_on:
+      - loki
+
+  tempo:
+    image: grafana/tempo:2.4
+    container_name: flip-tempo
+    profiles: ["full"]
+    command: "-config.file=/etc/tempo.yaml"
+    volumes:
+      - tempo_data:/var/tempo
+      - ./infra/monitoring/tempo.yaml:/etc/tempo.yaml:ro
+    ports:
+      - "3200:3200"
+      - "4317:4317"
+      - "4318:4318"
+    depends_on:
+      - prometheus
+
+  # ---------------------------------------------------------
+  # SECRETS: HashiCorp Vault (Dev Mode)
+  # ---------------------------------------------------------
+  vault:
+    image: hashicorp/vault:1.16
+    container_name: flip-vault
+    profiles: ["full"]
+    command: server -dev -dev-root-token-id="root" -dev-listen-address="0.0.0.0:8200"
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: "root"
+      VAULT_ADDR: "http://0.0.0.0:8200"
+    ports:
+      - "8200:8200"
+    cap_add:
+      - IPC_LOCK
+
+  # ---------------------------------------------------------
+  # EMAIL TESTING: Mailhog
+  # ---------------------------------------------------------
+  mailhog:
+    image: mailhog/mailhog:v1.0
+    container_name: flip-mailhog
+    profiles: ["full"]
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  # ---------------------------------------------------------
+  # ML TRAINING (GPU Profile Only)
+  # ---------------------------------------------------------
+  ml-trainer:
+    build:
+      context: ./ml
+      dockerfile: Dockerfile.train
+    container_name: flip-ml-trainer
+    profiles: ["gpu"]
+    environment:
+      NVIDIA_VISIBLE_DEVICES: "all"
+      MLFLOW_TRACKING_URI: "http://mlflow:5000"
+      MLFLOW_S3_ENDPOINT_URL: "http://minio:9000"
+      AWS_ACCESS_KEY_ID: "minioadmin"
+      AWS_SECRET_ACCESS_KEY: "minioadmin"
+    volumes:
+      - ./ml:/workspace:cached
+      - mlflow_data:/mlflow
+    command: sleep infinity
+
+# ============================================================
+# VOLUMES
+# ============================================================
+volumes:
+  postgres_data:
+  minio_data:
+  nats_data:
+  emqx_data:
+  emqx_etc:
+  redis_data:
+  temporal_data:
+  keycloak_data:
+  grafana_data:
+  prometheus_data:
+  loki_data:
+  tempo_data:
+  mlflow_data:
+  martin_cache:
+
+# ============================================================
+# NETWORKS
+# ============================================================
+networks:
+  default:
+    name: flip-network
+    driver: bridge
+

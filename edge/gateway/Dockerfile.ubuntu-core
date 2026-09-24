@@ -1,0 +1,20 @@
+# Ubuntu Core Appliance Build for FLIP Gateway
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    snapcraft \
+    squashfs-tools \
+    u-boot-tools \
+    cosign \
+    systemd \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+COPY . /build/gateway
+
+# Snapcraft packaging step for Ubuntu Core A/B partition distribution
+CMD ["snapcraft", "--destructive-mode"]

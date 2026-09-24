@@ -1,0 +1,42 @@
+name: Keycloak Realm GitOps Sync
+
+on:
+  push:
+    paths:
+      - 'infra/keycloak/**'
+      - '.github/workflows/keycloak-sync.yaml'
+  pull_request:
+    paths:
+      - 'infra/keycloak/**'
+
+jobs:
+  validate-and-build:
+    name: Validate Keycloak Realm & Build SPI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Validate Realm JSON
+        run: |
+          jq empty infra/keycloak/realm-export.json
+          echo "✅ realm-export.json is valid JSON"
+
+      - name: Build Keycloak SMS OTP SPI JAR
+        run: |
+          cd infra/keycloak/spi/otp-sms-provider
+          mvn clean package -DskipTests
+          ls -la target/otp-sms-provider.jar
+
+      - name: Start Keycloak & Test GitOps Provisioning
+        run: |
+          docker compose up -d keycloak postgres
+          chmod +x ./scripts/provision-keycloak.sh
+          ./scripts/provision-keycloak.sh

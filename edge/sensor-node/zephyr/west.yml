@@ -1,0 +1,26 @@
+manifest:
+  remotes:
+    - name: zephyrproject-rtos
+      url-base: https://github.com/zephyrproject-rtos
+  defaults:
+    remote: zephyrproject-rtos
+    revision: v3.6.0
+  projects:
+    - name: zephyr
+      remote: zephyrproject-rtos
+      revision: v3.6.0
+      import: true
+    - name: hal_espressif
+      remote: zephyrproject-rtos
+      revision: zephyr
+      path: modules/hal/espressif
+    - name: mcuboot
+      remote: zephyrproject-rtos
+      revision: v2.0.0
+      path: bootloader/mcuboot
+    - name: tinycbor
+      remote: zephyrproject-rtos
+      revision: zephyr
+      path: modules/lib/tinycbor
+  self:
+    path: application

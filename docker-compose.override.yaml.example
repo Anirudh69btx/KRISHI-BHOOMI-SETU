@@ -1,0 +1,17 @@
+version: "3.9"
+
+# ============================================================
+# FLIP v3.0 — User Overrides (Example)
+# Copy to `docker-compose.override.yaml` to customize local setup.
+# ============================================================
+
+services:
+  # core-api:
+  #   ports:
+  #     - "5678:5678" # debugpy port
+  #   environment:
+  #     LOG_LEVEL: "DEBUG"
+
+  # web:
+  #   ports:
+  #     - "9229:9229" # node inspector

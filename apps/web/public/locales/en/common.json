@@ -1,0 +1,67 @@
+{
+  "app_name": "FLIP — Krishi Bhoomi Setu",
+  "tagline": "Smart Farming Platform",
+  "loading": "Loading...",
+  "error": "Something went wrong",
+  "retry": "Retry",
+  "cancel": "Cancel",
+  "save": "Save",
+  "delete": "Delete",
+  "confirm": "Confirm",
+  "back": "Back",
+  "next": "Next",
+  "close": "Close",
+  "search": "Search",
+  "filter": "Filter",
+  "export": "Export",
+  "refresh": "Refresh",
+  "online": "Online",
+  "offline": "Offline — working locally",
+  "syncing": "Syncing {{count}} action(s)...",
+  "nav": {
+    "dashboard": "Dashboard",
+    "farms": "My Farms",
+    "advisories": "Advisories",
+    "weather": "Weather",
+    "market": "Market Prices",
+    "disaster": "Disaster Alerts",
+    "settings": "Settings",
+    "copilot": "Kisan Copilot"
+  },
+  "auth": {
+    "login": "Login",
+    "logout": "Logout",
+    "welcome": "Welcome, {{name}}",
+    "signing_in": "Signing in..."
+  },
+  "farm": {
+    "select": "Select Farm",
+    "no_farms": "No farms found",
+    "area": "Area",
+    "crop": "Crop",
+    "district": "District",
+    "state": "State"
+  },
+  "sensor": {
+    "temperature": "Temperature",
+    "humidity": "Humidity",
+    "soil_moisture": "Soil Moisture",
+    "ph": "pH",
+    "nitrogen": "Nitrogen",
+    "phosphorus": "Phosphorus",
+    "potassium": "Potassium",
+    "rainfall": "Rainfall",
+    "light": "Light",
+    "battery": "Battery",
+    "last_seen": "Last seen {{time}}"
+  },
+  "units": {
+    "celsius": "°C",
+    "percent": "%",
+    "ppm": "ppm",
+    "lux": "lux",
+    "mm": "mm",
+    "hectare": "ha",
+    "volt": "V"
+  }
+}

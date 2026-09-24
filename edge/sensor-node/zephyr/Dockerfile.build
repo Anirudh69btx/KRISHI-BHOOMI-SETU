@@ -1,0 +1,19 @@
+# Zephyr Build Container for FLIP ESP32-C3 Firmware
+FROM zephyrprojectrtos/ci:v0.26.5
+
+WORKDIR /workspace
+
+# Install Espressif toolchain and west dependencies
+RUN pip3 install --no-cache-dir west esptool
+
+# Copy application sources
+COPY . /workspace/app
+
+# Initialize west workspace and build
+RUN west init -l /workspace/app && \
+    west update -o=--depth=1 && \
+    west zephyr-export
+
+WORKDIR /workspace/app
+
+CMD ["west", "build", "-b", "esp32c3_devkitm", "-p", "always"]

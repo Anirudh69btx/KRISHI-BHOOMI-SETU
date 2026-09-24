@@ -1,0 +1,65 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "pipeline": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", "build/**", ".next/**", "storybook-static/**"],
+      "cache": true
+    },
+    "lint": {
+      "outputs": [],
+      "cache": true
+    },
+    "format": {
+      "outputs": [],
+      "cache": true
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck"],
+      "outputs": [],
+      "cache": true
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**", "htmlcov/**", "playwright-report/**"],
+      "cache": true
+    },
+    "test:e2e": {
+      "dependsOn": ["build"],
+      "outputs": ["playwright-report/**", "test-results/**"],
+      "cache": false
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "generate:graphql": {
+      "dependsOn": ["^build"],
+      "outputs": ["src/generated/**"],
+      "cache": true
+    },
+    "db:migrate": {
+      "cache": false
+    },
+    "ml:train": {
+      "cache": false,
+      "env": ["MLFLOW_TRACKING_URI", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "DVC_REMOTE"]
+    },
+    "edge:build": {
+      "cache": true,
+      "env": ["DOCKER_BUILDKIT", "BUILDKIT_PROGRESS"]
+    }
+  },
+  "globalEnv": [
+    "FLIP_ENV",
+    "FLIP_DOMAIN",
+    "DATABASE_URL",
+    "NATS_URL",
+    "MINIO_ENDPOINT",
+    "KEYCLOAK_URL",
+    "TEMPORAL_ADDRESS"
+  ],
+  "remoteCache": {
+    "signature": true
+  }
+}

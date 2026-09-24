@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "key_id": "flip-ota-root-2026",
+  "index": {
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855": {
+      "artifact_name": "gateway-v1.1.0-arm64.img.xz",
+      "cosign_signature": "MEUCIQDf0mZ+Z6mZ+Z6mZ+Z6mZ+Z6mZ+Z6mZ+Z6mZ+Z6mZ+Z6wIgY7mZ+Z6mZ+Z6mZ+Z6mZ+Z6mZ+Z6mZ+Z6mZ+Z6mZ+Z6g=",
+      "signer": "ci@flip.farm",
+      "signed_at": "2026-09-17T11:45:00Z",
+      "provenance": {
+        "git_commit": "78a1bc2d3e4f5061728394a5b6c7d8e9f0123456",
+        "builder": "GitHub Actions / FLIP Edge Release"
+      }
+    },
+    "4a5b6c7d8e9f0123456789abcdef0123456789abcdef0123456789abcdef0123": {
+      "artifact_name": "sensor-node-v1.1.0-signed.bin",
+      "cosign_signature": "MEQCIF6mZ+Z6mZ+Z6mZ+Z6mZ+Z6mZ+Z6mZ+Z6mZ+Z6mZ+Z6mAiB7mZ+Z6mZ+Z6mZ+Z6mZ+Z6mZ+Z6mZ+Z6mZ+Z6mZ+Z6hQ==",
+      "signer": "ci@flip.farm",
+      "signed_at": "2026-09-17T11:50:00Z",
+      "provenance": {
+        "git_commit": "78a1bc2d3e4f5061728394a5b6c7d8e9f0123456",
+        "builder": "Zephyr SDK v0.26.5 Container"
+      }
+    }
+  }
+}

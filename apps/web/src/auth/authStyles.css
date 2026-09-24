@@ -1,0 +1,174 @@
+/**
+ * FLIP v3.0 — IAM UI Styles (Segment 01)
+ * Glassmorphism, tailored inputs, OTP digit boxes, and role badge styles.
+ */
+
+.flip-auth-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: radial-gradient(circle at 10% 20%, rgba(6, 78, 59, 0.95) 0%, rgba(2, 44, 34, 1) 90%);
+}
+
+.flip-auth-card {
+  width: 100%;
+  max-width: 480px;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(16px);
+  border-radius: 1.25rem;
+  padding: 2.5rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+.flip-auth-tabs {
+  display: flex;
+  background: #f3f4f6;
+  padding: 0.35rem;
+  border-radius: 0.75rem;
+  margin-bottom: 2rem;
+}
+
+.flip-auth-tab {
+  flex: 1;
+  text-align: center;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #4b5563;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  background: transparent;
+}
+
+.flip-auth-tab.active {
+  background: #ffffff;
+  color: #065f46;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
+}
+
+.flip-otp-inputs {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  margin: 1.5rem 0;
+}
+
+.flip-otp-digit {
+  width: 3.25rem;
+  height: 3.75rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-align: center;
+  border: 2px solid #e5e7eb;
+  border-radius: 0.5rem;
+  background: #f9fafb;
+  color: #111827;
+  transition: all 0.2s ease-in-out;
+}
+
+.flip-otp-digit:focus {
+  outline: none;
+  border-color: #059669;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
+  transform: translateY(-2px);
+}
+
+.flip-otp-digit.filled {
+  border-color: #10b981;
+  background: #ecfdf5;
+}
+
+.flip-btn-primary {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.5rem;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 1rem;
+  border: none;
+  border-radius: 0.75rem;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35);
+  transition: all 0.2s ease;
+}
+
+.flip-btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #047857 0%, #065f46 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(5, 150, 105, 0.45);
+}
+
+.flip-btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.flip-btn-secondary {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.5rem;
+  background: #ffffff;
+  color: #374151;
+  font-weight: 600;
+  font-size: 1rem;
+  border: 1.5px solid #d1d5db;
+  border-radius: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.flip-btn-secondary:hover:not(:disabled) {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.flip-role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.flip-role-badge.farmer {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.flip-role-badge.agronomist {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.flip-role-badge.fpo_admin {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.flip-role-badge.gov_officer {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.flip-role-badge.platform_admin {
+  background: #fee2e2;
+  color: #991b1b;
+}

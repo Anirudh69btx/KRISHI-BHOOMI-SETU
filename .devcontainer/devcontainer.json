@@ -1,0 +1,92 @@
+{
+  "name": "FLIP v3.0 Dev Container",
+  "image": "mcr.microsoft.com/devcontainers/universal:2",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "latest",
+      "dockerDashComposeVersion": "v2"
+    },
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "20",
+      "pnpmVersion": "9"
+    },
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.12",
+      "installTools": true
+    },
+    "ghcr.io/devcontainers/features/rust:1": {
+      "version": "stable"
+    },
+    "ghcr.io/devcontainers/features/go:1": {
+      "version": "1.22"
+    },
+    "ghcr.io/devcontainers/features/java:1": {
+      "version": "21"
+    }
+  },
+  "postCreateCommand": "bash scripts/setup-dev-env.sh && pnpm install && pip install uv && ([ -f pyproject.toml ] && uv sync || true)",
+  "postStartCommand": "docker compose pull --quiet",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "charliermarsh.ruff",
+        "ms-toolsai.jupyter",
+        "bradlc.vscode-tailwindcss",
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint",
+        "graphql.vscode-graphql",
+        "graphql.vscode-graphql-syntax",
+        "ms-azuretools.vscode-docker",
+        "ms-kubernetes-tools.vscode-kubernetes-tools",
+        "redhat.vscode-yaml",
+        "zxh404.vscode-proto3",
+        "mtxr.sqltools",
+        "mtxr.sqltools-driver-pg",
+        "humao.rest-client",
+        "eamodio.gitlens",
+        "streetsidesoftware.code-spell-checker",
+        "github.copilot"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "[python]": {
+          "editor.defaultFormatter": "charliermarsh.ruff"
+        }
+      }
+    }
+  },
+  "forwardPorts": [
+    3000,
+    5173,
+    8000,
+    8080,
+    9000,
+    9001,
+    4222,
+    5672,
+    5000,
+    9090,
+    3100
+  ],
+  "portsAttributes": {
+    "3000": { "label": "Next.js App" },
+    "5173": { "label": "Web (Vite Dev)", "onAutoForward": "openBrowser" },
+    "8000": { "label": "Core API (FastAPI)" },
+    "8080": { "label": "Keycloak" },
+    "9000": { "label": "MinIO API" },
+    "9001": { "label": "MinIO Console" },
+    "5000": { "label": "MLflow" },
+    "5672": { "label": "RabbitMQ AMQP" },
+    "9090": { "label": "Prometheus" },
+    "3100": { "label": "Loki" },
+    "4222": { "label": "NATS" }
+  },
+  "remoteUser": "vscode",
+  "mounts": [
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
+  ]
+}

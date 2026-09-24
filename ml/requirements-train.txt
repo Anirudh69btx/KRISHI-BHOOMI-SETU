@@ -1,0 +1,35 @@
+# Core ML
+torch==2.2.0 --index-url https://download.pytorch.org/whl/cu121
+torchvision==0.17.0 --index-url https://download.pytorch.org/whl/cu121
+pytorch-lightning==2.2.0
+timm==0.9.12
+segmentation-models-pytorch==0.3.3
+
+# Data
+pandas==2.1.4
+numpy==1.26.0
+scikit-learn==1.3.2
+xgboost==2.0.3
+lightgbm==4.2.0
+prophet==1.1.5
+opencv-python-headless==4.8.1.78
+albumentations==1.3.1
+
+# MLOps
+mlflow==2.9.0
+dvc==3.45.0
+optuna==3.5.0
+# wandb==0.16.0  # OPTIONAL — uncomment if W&B API key available
+
+# Export (TF needed for TFLite conversion)
+tensorflow==2.15.0
+onnx==1.15.0
+onnxruntime==1.17.0
+onnxsim>=0.4.33
+
+# Utilities
+pydantic==2.5.3
+pyyaml==6.0.1
+tqdm==4.66.1
+matplotlib==3.8.0
+seaborn==0.13.0

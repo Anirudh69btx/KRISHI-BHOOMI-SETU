@@ -1,0 +1,37 @@
+farm_id: "fa000001-0000-0000-0000-000000000001"
+gateway_id: "gw-001"
+models_path: "/models"
+db_path: "/data/gateway.db"
+nats_url: "nats://nats:4222"
+mqtt_host: "localhost"
+mqtt_port: 1883
+lora_device: "/dev/ttyAMA0"
+audio_device: "default"
+
+voice:
+  wake_word: "hey_kisan"
+  language: "hi"
+  stt_model: "whisper_tiny_int8.bin"
+  tts_model: "piper_indic.onnx"
+  wake_word_model: "hey_kisan.ppn"
+  sample_rate: 16000
+
+ota:
+  manifest_url: "https://ota.flip.farm/manifest.json"
+  public_key_path: "/etc/flip/cosign.pub"
+  current_partition: "A"
+  health_check_timeout: 300
+
+connectivity:
+  check_interval: 30
+  wifi_interface: "wlan0"
+  lte_modem: "cdc-wdm0"
+  lora_device: "/dev/ttyAMA0"
+  priority: ["wifi", "lte", "lora"]
+
+inference:
+  cropnet: "cropnet_int8.tflite"
+  diseasenet: "diseasenet_int8.tflite"
+  pestdetect: "pestdetect_int8.onnx"
+  fusionlite: "fusionlite_int8.onnx"
+  microclimate: "microclimate_int8.tflite"

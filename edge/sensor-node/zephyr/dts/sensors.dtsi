@@ -1,0 +1,71 @@
+/*
+ * FLIP Sensor Node DTS - Sensors Definition
+ * Target: ESP32-C3
+ */
+
+/ {
+	aliases {
+		sht45 = &sht45_sensor;
+		bh1750 = &bh1750_sensor;
+		atecc608b = &atecc608b_se;
+		vwc-ec = &vwc_ec_sensor;
+		leaf-wetness = &leaf_wetness_sensor;
+		rain-gauge = &rain_gauge_sensor;
+		battery-adc = &battery_sensor;
+	};
+
+	rain_gauge_sensor: rain_gauge {
+		compatible = "gpio-keys";
+		rain_gauge_pin: rain_gauge_pin {
+			gpios = <&gpio0 8 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+			label = "Rain Gauge Reed Switch";
+		};
+	};
+
+	vwc_ec_sensor: vwc_ec {
+		compatible = "voltage-divider";
+		io-channels = <&adc0 0>;
+		output-ohms = <10000>;
+		full-ohms = <20000>;
+	};
+
+	leaf_wetness_sensor: leaf_wetness {
+		compatible = "voltage-divider";
+		io-channels = <&adc0 1>;
+		output-ohms = <10000>;
+		full-ohms = <20000>;
+	};
+
+	battery_sensor: battery_adc {
+		compatible = "voltage-divider";
+		io-channels = <&adc0 3>;
+		output-ohms = <100000>;
+		full-ohms = <200000>; /* 2:1 divider for 3.2V - 4.2V battery */
+	};
+};
+
+&i2c0 {
+	status = "okay";
+	clock-frequency = <I2C_BITRATE_FAST>;
+	sda-gpios = <&gpio0 4 (GPIO_PULL_UP | GPIO_OPEN_DRAIN)>;
+	scl-gpios = <&gpio0 5 (GPIO_PULL_UP | GPIO_OPEN_DRAIN)>;
+
+	sht45_sensor: sht4x@44 {
+		compatible = "sensirion,sht4x";
+		reg = <0x44>;
+		repeatability = <0>; /* High repeatability */
+		status = "okay";
+	};
+
+	bh1750_sensor: bh1750@23 {
+		compatible = "rohm,bh1750";
+		reg = <0x23>;
+		status = "okay";
+	};
+
+	atecc608b_se: atecc608b@60 {
+		compatible = "atmel,atecc608";
+		reg = <0x60>;
+		status = "okay";
+	};
+};

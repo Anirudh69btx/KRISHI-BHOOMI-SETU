@@ -1,0 +1,30 @@
+name: ML Training Pipeline
+
+on:
+  schedule:
+    # Run weekly on Sunday at midnight UTC
+    - cron: "0 0 * * 0"
+  workflow_dispatch:
+
+jobs:
+  train-fusion-model:
+    name: Retrain CrossAttentionFusion Model
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install ML dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -e "./ml"
+
+      - name: Run Model Training & Conformal Calibration
+        run: |
+          python -m ml.training.train --epochs 5 --batch-size 32

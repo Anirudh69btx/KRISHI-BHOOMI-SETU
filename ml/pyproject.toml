@@ -1,0 +1,33 @@
+[project]
+name = "flip-ml"
+version = "3.0.0"
+description = "FLIP v3.0 ML Pipeline — Multi-Modal Fusion, Conformal Prediction, Continual Learning"
+readme = "README.md"
+requires-python = ">=3.11"
+
+dependencies = [
+    "torch>=2.4.0",
+    "torchvision>=0.19.0",
+    "lightning>=2.4.0",
+    "numpy>=2.0.0",
+    "pandas>=2.2.2",
+    "scikit-learn>=1.5.1",
+    "mlflow>=2.15.1",
+    "dvc>=3.55.2",
+    "dvc-s3>=3.2.0",
+    "nonconformist>=2.1.0",
+    "timm>=1.0.8",
+    "einops>=0.8.0",
+    "pydantic>=2.8.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.2",
+    "ruff>=0.5.6",
+    "mypy>=1.11.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

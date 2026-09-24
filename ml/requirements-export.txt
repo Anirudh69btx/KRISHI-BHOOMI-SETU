@@ -1,0 +1,7 @@
+onnx==1.15.0
+onnxruntime==1.17.0
+onnxsim>=0.4.33
+tensorflow==2.15.0
+tflite-runtime==2.15.0; sys_platform == 'linux'
+pydantic==2.5.3
+pyyaml==6.0.1

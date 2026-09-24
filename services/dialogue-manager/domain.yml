@@ -1,0 +1,21 @@
+version: "3.1"
+
+intents:
+  - greet
+  - goodbye
+  - ask_soil_moisture
+  - ask_weather_forecast
+  - ask_crop_advisory
+  - bot_challenge
+
+responses:
+  utter_greet:
+    - text: "Namaste! I am Kisan Copilot. How can I help with your crops or farm today?"
+  utter_goodbye:
+    - text: "Shubh din! Feel free to ask anytime you need farm advice."
+  utter_iamabot:
+    - text: "I am the FLIP Kisan AI Copilot, running on farm lifecycle intelligence."
+
+actions:
+  - action_get_soil_moisture
+  - action_get_crop_advisory

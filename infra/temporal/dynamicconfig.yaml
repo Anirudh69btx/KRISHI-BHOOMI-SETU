@@ -1,0 +1,38 @@
+## Temporal Dynamic Config — FLIP v3.0
+## Ref: https://github.com/temporalio/temporal/blob/main/config/dynamicconfig/development_es.yaml
+
+system.forceSearchAttributesCacheRefreshOnRead:
+  - value: true
+    constraints: {}
+
+limit.maxIDLength:
+  - value: 255
+    constraints: {}
+
+frontend.enableClientVersionCheck:
+  - value: false
+    constraints: {}
+
+history.defaultActivityRetryPolicy:
+  - value:
+      InitialIntervalInSeconds: 1
+      MaximumIntervalCoefficient: 100.0
+      BackoffCoefficient: 2.0
+      MaximumAttempts: 0
+    constraints: {}
+
+history.defaultWorkflowRetryPolicy:
+  - value:
+      InitialIntervalInSeconds: 1
+      MaximumIntervalCoefficient: 100.0
+      BackoffCoefficient: 2.0
+      MaximumAttempts: 0
+    constraints: {}
+
+matching.numTaskqueueReadPartitions:
+  - value: 1
+    constraints: {}
+
+matching.numTaskqueueWritePartitions:
+  - value: 1
+    constraints: {}

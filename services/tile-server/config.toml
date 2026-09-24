@@ -1,0 +1,44 @@
+# ============================================================
+# FLIP v3.0 — Martin Tile Server Configuration
+# Serves: PostGIS vector tiles (MVT) for farms, fields, soil, disaster alerts
+# ============================================================
+
+[srv]
+keep_alive = 75
+listen_addresses = '0.0.0.0:3000'
+worker_processes = 4
+
+[postgres]
+connection_string = "postgresql://postgres:postgres@pgbouncer:6432/flip"
+default_srid = 4326
+pool_size = 10
+
+# Automatically publish spatial tables and functions from public schema
+[postgres.auto_publish]
+tables = true
+functions = true
+
+# Custom table sources
+[postgres.tables.farms]
+schema = "public"
+table = "farms"
+srid = 4326
+geometry_column = "boundary"
+id_column = "id"
+properties = { name = "text", area_ha = "float8", owner_id = "uuid" }
+
+[postgres.tables.fields]
+schema = "public"
+table = "fields"
+srid = 4326
+geometry_column = "boundary"
+id_column = "id"
+properties = { name = "text", farm_id = "uuid", soil_type = "text", area_ha = "float8" }
+
+[postgres.tables.disaster_alerts]
+schema = "public"
+table = "disaster_alerts"
+srid = 4326
+geometry_column = "geometry"
+id_column = "id"
+properties = { event_type = "text", severity = "text", status = "text" }

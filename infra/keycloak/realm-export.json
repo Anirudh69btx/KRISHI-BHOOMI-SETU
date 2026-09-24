@@ -1,0 +1,443 @@
+{
+  "realm": "flip",
+  "enabled": true,
+  "displayName": "FLIP Farm Platform",
+  "displayNameHtml": "<strong>FLIP</strong> Farm Platform",
+  "defaultLocale": "en",
+  "internationalizationEnabled": true,
+  "supportedLocales": ["en", "hi"],
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxLoginFailures": 10,
+  "accessTokenLifespan": 300,
+  "refreshTokenMaxReuse": 0,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "roles": {
+    "realm": [
+      { "name": "farmer", "description": "Smallholder farmer with access to own farm data", "composite": false },
+      { "name": "fpo_admin", "description": "FPO admin with read access to all member farms", "composite": false },
+      { "name": "fpo_member", "description": "FPO member farmer", "composite": false },
+      { "name": "agronomist", "description": "Expert agronomist who can review and annotate advisories", "composite": false },
+      { "name": "gov_officer", "description": "Government officer with read-only GIS and aggregate views", "composite": false },
+      { "name": "buyer", "description": "Marketplace buyer with access to market module", "composite": false },
+      { "name": "logistics", "description": "Logistics provider with route and inventory access", "composite": false },
+      { "name": "platform_admin", "description": "Platform superadmin", "composite": false },
+      { "name": "device", "description": "IoT device / gateway service account", "composite": false }
+    ]
+  },
+  "groups": [
+    {
+      "name": "farmers",
+      "realmRoles": ["farmer"]
+    },
+    {
+      "name": "fpo-admins",
+      "realmRoles": ["fpo_admin"]
+    },
+    {
+      "name": "experts",
+      "realmRoles": ["agronomist"]
+    },
+    {
+      "name": "government",
+      "realmRoles": ["gov_officer"]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "flip-web",
+      "name": "FLIP Web PWA",
+      "description": "Public OIDC client for farmer-facing Progressive Web App",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "protocol": "openid-connect",
+      "rootUrl": "http://localhost:5173",
+      "baseUrl": "http://localhost:5173",
+      "redirectUris": [
+        "http://localhost:5173/*",
+        "https://staging.flip.farm/*",
+        "https://flip.farm/*"
+      ],
+      "webOrigins": [
+        "http://localhost:5173",
+        "https://staging.flip.farm",
+        "https://flip.farm"
+      ],
+      "defaultClientScopes": ["web-origins", "profile", "roles", "email", "openid"],
+      "optionalClientScopes": ["address", "phone", "offline_access"],
+      "protocolMappers": [
+        {
+          "name": "org_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "userinfo.token.claim": "true",
+            "user.attribute": "org_id",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "org_id",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "flip_role",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "userinfo.token.claim": "true",
+            "user.attribute": "flip_role",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "flip_role",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "realm roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "roles",
+            "jsonType.label": "String"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "flip-api",
+      "name": "FLIP Core API",
+      "description": "Confidential client for FastAPI backend service",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "protocol": "openid-connect",
+      "secret": "dev-secret",
+      "defaultClientScopes": ["web-origins", "profile", "roles", "email", "openid"],
+      "optionalClientScopes": ["address", "phone", "offline_access"],
+      "protocolMappers": [
+        {
+          "name": "org_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "userinfo.token.claim": "true",
+            "user.attribute": "org_id",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "org_id",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "flip_role",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "userinfo.token.claim": "true",
+            "user.attribute": "flip_role",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "flip_role",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "realm roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "roles",
+            "jsonType.label": "String"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "flip-device",
+      "name": "FLIP IoT Device",
+      "description": "Service account for edge gateways and sensor nodes",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "protocol": "openid-connect",
+      "secret": "dev-device-secret",
+      "defaultClientScopes": ["web-origins", "roles", "openid"],
+      "optionalClientScopes": [],
+      "attributes": {
+        "use.refresh.tokens": "false"
+      }
+    },
+    {
+      "clientId": "flip-m2m",
+      "name": "FLIP M2M Gateway Client",
+      "description": "Machine-to-machine client for Edge Gateway to Cloud token exchange & client-credentials authentication",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "protocol": "openid-connect",
+      "secret": "dev-m2m-secret",
+      "defaultClientScopes": ["web-origins", "roles", "openid"],
+      "optionalClientScopes": [],
+      "protocolMappers": [
+        {
+          "name": "flip_role",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.value": "device",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "flip_role",
+            "jsonType.label": "String"
+          }
+        }
+      ],
+      "attributes": {
+        "client_credentials.use_refresh_token": "false"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "farmer@test.com",
+      "email": "farmer@test.com",
+      "firstName": "Ramesh",
+      "lastName": "Kumar",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["farmer"],
+      "attributes": {
+        "org_id": ["11111111-1111-1111-1111-111111111111"],
+        "flip_role": ["farmer"]
+      }
+    },
+    {
+      "username": "fpo@test.com",
+      "email": "fpo@test.com",
+      "firstName": "Rajesh",
+      "lastName": "Patel",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["fpo_admin"],
+      "attributes": {
+        "org_id": ["11111111-1111-1111-1111-111111111111"],
+        "flip_role": ["fpo_admin"]
+      }
+    },
+    {
+      "username": "expert@flip.farm",
+      "email": "expert@flip.farm",
+      "firstName": "Anil",
+      "lastName": "Verma",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["agronomist"],
+      "attributes": {
+        "org_id": ["22222222-2222-2222-2222-222222222222"],
+        "flip_role": ["agronomist"]
+      }
+    },
+    {
+      "username": "gov@flip.farm",
+      "email": "gov@flip.farm",
+      "firstName": "Sunita",
+      "lastName": "Sharma",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["gov_officer"],
+      "attributes": {
+        "org_id": ["22222222-2222-2222-2222-222222222222"],
+        "flip_role": ["gov_officer"]
+      }
+    },
+    {
+      "username": "admin@flip.farm",
+      "email": "admin@flip.farm",
+      "firstName": "Platform",
+      "lastName": "Admin",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["platform_admin"],
+      "attributes": {
+        "flip_role": ["platform_admin"]
+      }
+    }
+  ],
+  "clientScopes": [
+    {
+      "name": "farm:read",
+      "description": "Read access to farm data",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true"
+      }
+    },
+    {
+      "name": "farm:write",
+      "description": "Write access to farm data",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true"
+      }
+    },
+    {
+      "name": "advisory:read",
+      "description": "Read access to advisories",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true"
+      }
+    }
+  ],
+  "smtpServer": {
+    "host": "mailhog",
+    "port": "1025",
+    "from": "noreply@flip.farm",
+    "fromDisplayName": "FLIP Platform",
+    "auth": "false",
+    "starttls": "false",
+    "ssl": "false"
+  },
+  "authenticationFlows": [
+    {
+      "id": "otp-login-flow-id",
+      "alias": "otp-login",
+      "description": "Login with Phone OTP",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "flip-twilio-sms-authenticator",
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "autheticatorFlow": false
+        }
+      ]
+    },
+    {
+      "id": "expert-admin-flow-id",
+      "alias": "expert-admin",
+      "description": "Password + WebAuthn Passkeys for Experts and Admins",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "auth-username-password-form",
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "autheticatorFlow": false
+        },
+        {
+          "authenticator": "webauthn-authenticator",
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": true,
+          "autheticatorFlow": false
+        }
+      ]
+    }
+  ],
+  "requiredActions": [
+    {
+      "alias": "flip-twilio-sms-action",
+      "name": "FLIP Phone SMS Verification",
+      "providerId": "flip-twilio-sms-action",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 50,
+      "config": {}
+    },
+    {
+      "alias": "webauthn-register",
+      "name": "Webauthn Register",
+      "providerId": "webauthn-register",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 60,
+      "config": {}
+    }
+  ],
+  "eventsEnabled": true,
+  "eventsExpiration": 2592000,
+  "adminEventsEnabled": true,
+  "adminEventsDetailsEnabled": true,
+  "loginTheme": "flip-theme",
+  "accountTheme": "flip-theme",
+  "adminTheme": "keycloak.v2",
+  "emailTheme": "keycloak"
+}

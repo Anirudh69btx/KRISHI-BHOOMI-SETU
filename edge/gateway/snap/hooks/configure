@@ -1,0 +1,7 @@
+#!/bin/sh
+# Snap configure hook: updates dynamic runtime parameters
+farm_id=$(snapctl get farm-id)
+if [ -n "$farm_id" ]; then
+    sed -i "s/farm_id:.*/farm_id: \"$farm_id\"/" "$SNAP_COMMON/config/gateway.yaml"
+fi
+exit 0

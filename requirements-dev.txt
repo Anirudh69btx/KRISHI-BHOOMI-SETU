@@ -1,0 +1,12 @@
+# Core Dev Tools
+pre-commit==3.6.0
+ruff==0.3.0
+mypy==1.8.0
+pytest==7.4.0
+pytest-asyncio==0.23.0
+pytest-cov==4.1.0
+black==23.12.0
+isort==5.13.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+python-dotenv==1.0.0

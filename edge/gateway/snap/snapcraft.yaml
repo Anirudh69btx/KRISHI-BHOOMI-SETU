@@ -1,0 +1,41 @@
+name: flip-gateway
+base: core22
+version: '1.0.0'
+summary: FLIP Edge Gateway for Precision Agriculture
+description: |
+  Autonomous edge computing hub running on Raspberry Pi Zero 2W.
+  Provides LoRa sensor aggregation, offline AI vision, multilingual voice,
+  and store-and-forward synchronization to FLIP Cloud.
+
+grade: stable
+confinement: strict
+
+architectures:
+  - build-on: [amd64, arm64]
+    run-on: arm64
+
+apps:
+  daemon:
+    command: bin/python gateway.py
+    daemon: simple
+    restart-condition: always
+    plugs:
+      - network
+      - network-bind
+      - network-manager
+      - audio-playback
+      - audio-record
+      - serial-port
+      - hardware-observe
+      - raw-usb
+
+parts:
+  flip-gateway:
+    plugin: python
+    source: .
+    python-requirements:
+      - requirements.txt
+    stage-packages:
+      - mosquitto
+      - alsa-utils
+      - sqlite3

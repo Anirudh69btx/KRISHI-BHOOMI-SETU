@@ -1,0 +1,33 @@
+# Supabase CLI Local Configuration
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 5432
+shadow_port = 54320
+major_version = 16
+
+[db.pooler]
+enabled = true
+port = 6432
+pool_mode = "transaction"
+default_pool_size = 20
+max_client_conn = 100
+
+[studio]
+enabled = true
+port = 3002
+
+[auth]
+enabled = true
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["https://localhost:5173"]
+jwt_expiry = 3600
+
+[storage]
+enabled = true
+file_size_limit = "52428800"

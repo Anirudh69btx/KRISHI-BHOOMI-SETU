@@ -1,0 +1,110 @@
+_format_version: "3.0"
+
+# ============================================================
+# FLIP v3.0 — Kong Declarative Configuration (DB-less mode)
+# Routes:
+#   /graphql, /api/v1/health -> Core API (FastAPI)
+#   /tiles/                  -> Tile Server (Martin)
+#   /alerts/                 -> Alert Engine (Fastify)
+#   /dialogue/               -> Dialogue Manager (Rasa)
+# ============================================================
+
+services:
+  - name: core-api-service
+    url: http://core-api:8000
+    connect_timeout: 5000
+    read_timeout: 60000
+    write_timeout: 60000
+    routes:
+      - name: graphql-route
+        paths:
+          - /graphql
+        strip_path: false
+        methods:
+          - GET
+          - POST
+          - OPTIONS
+      - name: health-route
+        paths:
+          - /api/v1/health
+          - /health
+        strip_path: false
+        methods:
+          - GET
+
+  - name: tile-service
+    url: http://tile-server:3000
+    connect_timeout: 3000
+    read_timeout: 10000
+    write_timeout: 10000
+    routes:
+      - name: tiles-route
+        paths:
+          - /tiles
+        strip_path: true
+        methods:
+          - GET
+          - HEAD
+
+  - name: alert-service
+    url: http://alert-engine:3001
+    connect_timeout: 5000
+    read_timeout: 30000
+    write_timeout: 30000
+    routes:
+      - name: alerts-route
+        paths:
+          - /api/v1/alerts
+        strip_path: false
+        methods:
+          - GET
+          - POST
+          - PUT
+
+  - name: dialogue-service
+    url: http://rasa:5005
+    connect_timeout: 5000
+    read_timeout: 60000
+    write_timeout: 60000
+    routes:
+      - name: dialogue-route
+        paths:
+          - /dialogue
+        strip_path: true
+        methods:
+          - POST
+          - GET
+
+plugins:
+  - name: correlation-id
+    config:
+      header_name: X-Request-ID
+      generator: uuid
+      echo_downstream: true
+
+  - name: cors
+    config:
+      origins:
+        - "http://localhost:5173"
+        - "http://localhost:3000"
+        - "https://flip.farm"
+        - "https://staging.flip.farm"
+      methods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - OPTIONS
+      headers:
+        - Accept
+        - Accept-Version
+        - Content-Length
+        - Content-Type
+        - Authorization
+        - X-Request-ID
+        - Apollo-Require-Preflight
+      exposed_headers:
+        - X-Request-ID
+      credentials: true
+      max_age: 3600

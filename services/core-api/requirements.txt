@@ -1,0 +1,57 @@
+# FastAPI Stack
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+gunicorn==21.2.0
+
+# GraphQL
+strawberry-graphql==0.232.0
+graphql-core==3.2.4
+
+# Database
+sqlalchemy[asyncio]==2.0.25
+asyncpg==0.29.0
+alembic==1.13.1
+psycopg2-binary==2.9.9
+redis==5.0.1
+
+# Auth & Security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.6
+python-keycloak>=3.3.0  # Official Keycloak Admin client (urllib3 v2 compatible)
+
+# Messaging
+nats-py==2.7.0
+aio-pika==9.4.0
+
+# Workflows
+temporalio==1.5.0
+
+# ML/AI Inference Client
+tritonclient[all]==2.45.0
+onnxruntime==1.17.0
+numpy==1.26.0
+
+# Monitoring
+prometheus-client==0.19.0
+opentelemetry-api==1.22.0
+opentelemetry-sdk==1.22.0
+opentelemetry-instrumentation-fastapi==0.43b0
+opentelemetry-instrumentation-sqlalchemy==0.43b0
+opentelemetry-exporter-otlp==1.22.0
+
+# Utilities
+pydantic==2.5.3
+pydantic-settings==2.1.0
+python-dotenv==1.0.0
+pyyaml==6.0.1
+httpx==0.26.0
+tenacity==8.2.3
+structlog==24.1.0
+email-validator>=2.1.0
+
+# Dev/Test
+pytest==7.4.4
+pytest-asyncio==0.23.3
+pytest-mock==3.12.0
+faker==24.10.0
