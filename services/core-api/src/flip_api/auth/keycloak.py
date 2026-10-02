@@ -14,7 +14,8 @@ import httpx
 import structlog
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import ExpiredSignatureError, JWTClaimsError, JWTError, jwk, jwt
+from jose import ExpiredSignatureError, JWTError, jwk, jwt
+from jose.exceptions import JWTClaimsError
 
 from flip_api.config import settings
 from flip_api.models.auth import TokenData
@@ -121,8 +122,12 @@ def decode_and_validate_jwt(token: str, jwks: dict[str, Any] | None = None) -> d
     key_data = next((k for k in jwks.get("keys", []) if k.get("kid") == kid), None)
     if key_data is None:
         # Retry with fresh JWKS once in case of key rotation
-        jwks = sync_fetch_jwks()
-        key_data = next((k for k in jwks.get("keys", []) if k.get("kid") == kid), None)
+        try:
+            jwks = sync_fetch_jwks()
+            key_data = next((k for k in jwks.get("keys", []) if k.get("kid") == kid), None)
+        except Exception:
+            key_data = None
+
         if key_data is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -252,3 +257,6 @@ def require_role(*roles: str):
             )
         return user
     return _check_role
+
+
+require_roles = require_role

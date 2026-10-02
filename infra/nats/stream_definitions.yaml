@@ -1,0 +1,127 @@
+﻿# ============================================================
+# FLIP v3.0 — NATS JetStream Stream Definitions (Segment 05)
+# ============================================================
+# Applied at startup via nats_client.ensure_streams()
+# and can be provisioned with the nats CLI:
+#   nats stream add --config infra/nats/stream_definitions.yaml
+# ============================================================
+
+streams:
+  # ──────────────────────────────────────────────────────────
+  # FARM_SENSOR — all sensor telemetry lifecycle subjects
+  # ──────────────────────────────────────────────────────────
+  - name: FARM_SENSOR
+    description: "Sensor telemetry lifecycle: raw → EKF → validated → anomaly → health"
+    subjects:
+      - "farm.*.sensor.raw"           # Raw from EMQX bridge
+      - "farm.*.sensor.validated"     # Post-ingestion (Core API)
+      - "farm.*.sensor.anomaly"       # Anomaly events (EKF + IF)
+      - "farm.*.sensor.buffered"      # Offline buffer flush (edge reconnect)
+      - "farm.*.sensor.health"        # Health score updates
+      - "farm.*.sensor.health.degraded" # Score < 60 alerts
+    retention: limits
+    storage: file
+    max_age: 604800         # 7 days in seconds
+    max_bytes: 53687091200  # 50 GiB
+    max_msg_size: 65536     # 64 KiB per message
+    num_replicas: 1         # set to 3 for production cluster
+    discard: old
+    allow_direct: true
+    compression: s2         # Snappy compression for sensor data
+    consumers:
+      - name: core-api-ingestor
+        durable_name: core-api-ingestor
+        filter_subject: "farm.*.sensor.raw"
+        ack_policy: explicit
+        deliver_policy: new
+        max_deliver: 5
+        ack_wait: 30s
+        description: "Core API ingestion pipeline consumer"
+      - name: twin-updater
+        durable_name: twin-updater
+        filter_subject: "farm.*.sensor.validated"
+        ack_policy: explicit
+        deliver_policy: new
+        max_deliver: 3
+        ack_wait: 60s
+        description: "Digital Twin materialized view updater"
+      - name: alert-engine
+        durable_name: alert-engine
+        filter_subject: "farm.*.sensor.health.degraded"
+        ack_policy: explicit
+        deliver_policy: new
+        max_deliver: 10
+        ack_wait: 30s
+        description: "Alert engine: maintenance ticket dispatch"
+
+  # ──────────────────────────────────────────────────────────
+  # FARM_EVENTS — advisories, twin events, profile sync
+  # ──────────────────────────────────────────────────────────
+  - name: FARM_EVENTS
+    description: "Farm-level events: advisories, digital twin, profile sync"
+    subjects:
+      - "farm.*.advisory.generated"
+      - "farm.*.twin.updated"
+      - "farm.*.profile.synced"
+      - "farm.*.action.taken"
+      - "farm.*.maintenance.ticket"
+    retention: limits
+    storage: file
+    max_age: 2592000        # 30 days
+    max_bytes: 10737418240  # 10 GiB
+    num_replicas: 1
+    discard: old
+
+  # ──────────────────────────────────────────────────────────
+  # REGION_EVENTS — district-level outbreak alerts
+  # ──────────────────────────────────────────────────────────
+  - name: REGION_EVENTS
+    description: "Regional pest/disease/weather outbreak detection"
+    subjects:
+      - "region.*.outbreak.detected"
+      - "region.*.weather.alert"
+    retention: limits
+    storage: file
+    max_age: 31536000       # 1 year
+    max_bytes: 1073741824   # 1 GiB
+    num_replicas: 1
+    discard: old
+
+  # ──────────────────────────────────────────────────────────
+  # MODEL_EVENTS — ML model registry
+  # ──────────────────────────────────────────────────────────
+  - name: MODEL_EVENTS
+    description: "ML model registry: releases, continual learning triggers"
+    subjects:
+      - "model.registry.updated"
+      - "model.anomaly.retrained"
+    retention: limits
+    storage: file
+    max_age: 15552000       # 180 days
+    max_bytes: 104857600    # 100 MiB
+    num_replicas: 1
+    discard: old
+
+  # ──────────────────────────────────────────────────────────
+  # DISASTER — emergency alerts (highest priority)
+  # ──────────────────────────────────────────────────────────
+  - name: DISASTER
+    description: "Flood/fire/extreme weather emergency dispatch"
+    subjects:
+      - "disaster.*.alert"
+      - "disaster.*.acknowledged"
+    retention: limits
+    storage: file
+    max_age: 2592000        # 30 days
+    max_bytes: 536870912    # 512 MiB
+    num_replicas: 1
+    discard: old
+    consumers:
+      - name: disaster-dispatcher
+        durable_name: disaster-dispatcher
+        filter_subject: "disaster.*.alert"
+        ack_policy: explicit
+        deliver_policy: all
+        max_deliver: -1   # retry indefinitely for disaster alerts
+        ack_wait: 120s
+        description: "Critical disaster alert dispatcher — never drop"

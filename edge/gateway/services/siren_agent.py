@@ -67,6 +67,14 @@ class SirenAgent:
         finally:
             self.is_playing = False
 
+    async def start(self) -> None:
+        """Starts SirenAgent service lifecycle."""
+        LOG.info("SirenAgent started (acoustic alert & deterrent ready).")
+
+    def stop(self) -> None:
+        """Stops active siren sequence and resets state."""
+        self.is_playing = False
+
     def play_wav(self, relative_path: str):
         """Plays specific audio alert file through hardware mixer"""
         wav_path = self.alerts_dir / relative_path

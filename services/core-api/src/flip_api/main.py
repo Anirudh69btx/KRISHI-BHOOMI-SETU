@@ -5,6 +5,7 @@ Entry point: FastAPI application with lifespan management.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from collections.abc import AsyncGenerator
@@ -13,7 +14,7 @@ from contextlib import asynccontextmanager
 import structlog
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+from prometheus_client import REGISTRY, Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 
 from flip_api.config import settings
 from flip_api.database import create_engine_and_pool, close_engine
@@ -34,15 +35,21 @@ structlog.configure(
 logger = structlog.get_logger(__name__)
 
 # --- Prometheus Metrics ---
-REQUEST_COUNT = Counter(
-    "flip_http_requests_total",
-    "Total HTTP requests",
-    ["method", "path", "status"],
+REQUEST_COUNT = (
+    REGISTRY._names_to_collectors.get("flip_http_requests_total")
+    or Counter(
+        "flip_http_requests_total",
+        "Total HTTP requests",
+        ["method", "path", "status"],
+    )
 )
-REQUEST_LATENCY = Histogram(
-    "flip_http_request_duration_seconds",
-    "HTTP request latency",
-    ["method", "path"],
+REQUEST_LATENCY = (
+    REGISTRY._names_to_collectors.get("flip_http_request_duration_seconds")
+    or Histogram(
+        "flip_http_request_duration_seconds",
+        "HTTP request latency",
+        ["method", "path"],
+    )
 )
 
 # --- Shared NATS Client ---
@@ -167,6 +174,8 @@ from flip_api.routers import (
     copilot_router,
     auth_router,
 )
+# Segment 05: bulk telemetry ingestion
+from flip_api.services.ingestion_service import telemetry_router
 
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(sensors_router, prefix="/api/v1")
@@ -174,6 +183,7 @@ app.include_router(farms_router, prefix="/api/v1")
 app.include_router(advisories_router, prefix="/api/v1")
 app.include_router(disaster_router, prefix="/api/v1")
 app.include_router(copilot_router, prefix="/api/v1")
+app.include_router(telemetry_router, prefix="/api/v1")
 
 # --- GraphQL (Strawberry) ---
 app.include_router(graphql_app, prefix="/graphql")

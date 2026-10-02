@@ -33,7 +33,7 @@ async def test_authenticated_me_endpoint(monkeypatch, rsa_keypair):
     sub = str(uuid4())
     token = make_test_jwt(rsa_keypair, sub=sub, roles=["farmer"], name="Ramesh Kumar")
 
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app, raise_app_exceptions=False)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         resp = await ac.get(
             "/api/v1/auth/me",

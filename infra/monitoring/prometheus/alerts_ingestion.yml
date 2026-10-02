@@ -1,0 +1,159 @@
+﻿# ============================================================
+# FLIP v3.0 — Prometheus Alert Rules: Ingestion Pipeline
+# ============================================================
+# Copy to infra/monitoring/prometheus/ and include in
+# prometheus.yml under rule_files:
+# ============================================================
+
+groups:
+  # ── Ingestion Pipeline ────────────────────────────────────
+  - name: flip_ingestion
+    interval: 30s
+    rules:
+      - alert: IngestionThroughputLow
+        expr: |
+          rate(flip_ingestion_total{status="accepted"}[5m]) < 100
+        for: 5m
+        labels:
+          severity: warning
+          team: data-platform
+        annotations:
+          summary: "Ingestion throughput below 100 msg/s for {{ $labels.farm_id }}"
+          description: >
+            FLIP ingestion pipeline is receiving less than 100 messages/second
+            for farm {{ $labels.farm_id }}. Expected ≥ 20k/s sustained.
+            Current: {{ $value | humanize }} msg/s.
+          runbook: "https://wiki.flip.ai/runbooks/ingestion-throughput"
+
+      - alert: IngestionRejectionRateHigh
+        expr: |
+          rate(flip_ingestion_rejected_total[5m])
+            / (rate(flip_ingestion_total[5m]) + 1)
+            > 0.05
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High rejection rate (>5%) for farm {{ $labels.farm_id }}"
+          description: >
+            More than 5% of sensor readings are being rejected for
+            farm {{ $labels.farm_id }}, reason={{ $labels.reason }}.
+            Possible sensor misconfiguration or firmware bug.
+          runbook: "https://wiki.flip.ai/runbooks/ingestion-rejection"
+
+      - alert: IngestionLatencyP99High
+        expr: |
+          histogram_quantile(0.99,
+            rate(flip_ingestion_latency_seconds_bucket[5m])
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "P99 ingestion latency > 50ms for {{ $labels.farm_id }}"
+          description: >
+            99th percentile ingestion latency has exceeded the 50ms SLA target
+            for farm {{ $labels.farm_id }}.
+            Current P99: {{ $value | humanizeDuration }}.
+          runbook: "https://wiki.flip.ai/runbooks/ingestion-latency"
+
+      - alert: NATSConsumerLagging
+        expr: |
+          increase(flip_nats_consumer_lag_total[1m]) == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "NATS consumer stalled for {{ $labels.farm_id }}"
+          description: >
+            No messages consumed from NATS FARM_SENSOR stream for
+            farm {{ $labels.farm_id }} in the last 2 minutes.
+
+  # ── Anomaly Detection ─────────────────────────────────────
+  - name: flip_anomaly_detection
+    interval: 60s
+    rules:
+      - alert: AnomalyRateCritical
+        expr: |
+          rate(flip_anomaly_total{severity="CRITICAL"}[15m]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          team: agronomy
+        annotations:
+          summary: "Critical anomaly rate for farm {{ $labels.farm_id }}"
+          description: >
+            More than 0.1 CRITICAL anomalies/second (> 6/minute) detected
+            for farm {{ $labels.farm_id }}, sensor type {{ $labels.type }}.
+          runbook: "https://wiki.flip.ai/runbooks/anomaly-critical"
+
+      - alert: IsolationForestModelStale
+        expr: |
+          flip_isolation_forest_model_age_hours > 26
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "IF model stale (>26h) for {{ $labels.farm_id }}"
+          description: >
+            Isolation Forest model for farm {{ $labels.farm_id }} was last
+            trained {{ $value | humanize }} hours ago (expected daily retraining at 02:00 UTC).
+          runbook: "https://wiki.flip.ai/runbooks/if-model-stale"
+
+      - alert: AnomalyDetectionLatencyHigh
+        expr: |
+          histogram_quantile(0.99,
+            rate(flip_anomaly_detection_latency_seconds_bucket[5m])
+          ) > 5.0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "IF inference taking >5s for {{ $labels.farm_id }}"
+
+  # ── Sensor Health ─────────────────────────────────────────
+  - name: flip_sensor_health
+    interval: 120s
+    rules:
+      - alert: SensorHealthCritical
+        expr: |
+          flip_sensor_health_score < 40
+        for: 5m
+        labels:
+          severity: critical
+          team: field-ops
+        annotations:
+          summary: "Sensor critically degraded: {{ $labels.device_id }}"
+          description: >
+            Sensor {{ $labels.sensor_type }} on device {{ $labels.device_id }}
+            at farm {{ $labels.farm_id }} has health score {{ $value }}/100.
+            Immediate field intervention required.
+          runbook: "https://wiki.flip.ai/runbooks/sensor-health-critical"
+
+      - alert: SensorHealthDegraded
+        expr: |
+          flip_sensor_health_score < 60
+        for: 10m
+        labels:
+          severity: warning
+          team: field-ops
+        annotations:
+          summary: "Sensor degraded: {{ $labels.device_id }}"
+          description: >
+            Sensor {{ $labels.sensor_type }} on device {{ $labels.device_id }}
+            at farm {{ $labels.farm_id }} has health score {{ $value }}/100
+            (below 60 threshold). Maintenance ticket auto-created.
+          runbook: "https://wiki.flip.ai/runbooks/sensor-health-degraded"
+
+      - alert: MaintenanceTicketBacklog
+        expr: |
+          flip_maintenance_tickets_total{status="OPEN"} > 10
+        for: 30m
+        labels:
+          severity: warning
+          team: field-ops
+        annotations:
+          summary: "{{ $value }} open maintenance tickets for {{ $labels.farm_id }}"
+          description: >
+            More than 10 open maintenance tickets have accumulated for
+            farm {{ $labels.farm_id }}. Field team attention required.

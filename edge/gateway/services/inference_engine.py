@@ -127,6 +127,50 @@ class VisionResult:
     def condition(self) -> str:
         return self.primary_condition
 
+    def __getitem__(self, key: str) -> Any:
+        if key == "crop":
+            return self.crop_type
+        if key == "condition":
+            return self.primary_condition
+        if hasattr(self, key):
+            return getattr(self, key)
+        raise KeyError(key)
+
+    def __contains__(self, key: str) -> bool:
+        if key in ("crop", "condition"):
+            return True
+        return hasattr(self, key)
+
+    def get(self, key: str, default: Any = None) -> Any:
+        try:
+            return self[key]
+        except KeyError:
+            return default
+
+    def keys(self):
+        return set(self.__dict__.keys()) | {"crop", "condition"}
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "inference_id": self.inference_id,
+            "image_path": self.image_path,
+            "crop": self.crop_type,
+            "crop_stage": self.crop_stage,
+            "condition": self.primary_condition,
+            "confidence": self.condition_confidence,
+            "disease_probs": self.disease_probs,
+            "pest_detected": self.pest_detected,
+            "pest_type": self.pest_type,
+            "pest_count": self.pest_count,
+            "pest_detections": [
+                {"label": d.label, "confidence": d.confidence, "box": d.bbox}
+                for d in self.pest_detections
+            ],
+            "severity": self.severity,
+            "latency_ms": self.latency_ms,
+            "stub_mode": self.stub_mode,
+        }
+
 
 @dataclass
 class Advisory:
@@ -432,6 +476,11 @@ class InferenceEngine:
         self._microclimate= self._load_tflite("microclimate")
         self._pestdetect  = self._load_onnx("pestdetect")
         self._fusionlite  = self._load_onnx("fusionlite")
+        self._cropnet_interpreter = self._cropnet
+        self._diseasenet_interpreter = self._diseasenet
+        self._microclimate_interpreter = self._microclimate
+        self._pestdetect_session = self._pestdetect
+        self._fusionlite_session = self._fusionlite
 
     def _warmup_models(self):
         """Run 2 synthetic passes to warm CPU caches and memory pools."""
@@ -452,6 +501,10 @@ class InferenceEngine:
             dummy_s = np.zeros((1, 48), dtype=np.float32)
             dummy_st = np.zeros((1,), dtype=np.int64)
             self._fusionlite.run(None, {"sensor": dummy_s, "stage": dummy_st})
+
+        if not self._stub_mode.get("microclimate", True) and self._microclimate is not None:
+            dummy_hist = np.zeros((1, 24, 10), dtype=np.float32)
+            self._run_tflite(self._microclimate, dummy_hist)
 
         LOG.debug("Model warmup complete")
 
@@ -672,7 +725,6 @@ class InferenceEngine:
         )
         return float(np.clip(output[0].flat[0], 0.0, 1.0))
 
-    # ADD THIS METHOD (after run_fusion_lite)
     async def run_microclimate(self, history_24h: np.ndarray) -> dict:
         """
         Run MicroclimateNet: 24h sensor history → canopy RH + LWD hours
@@ -680,19 +732,14 @@ class InferenceEngine:
         Output: {'canopy_rh': float, 'lwd_hours': float}
         """
         if not hasattr(self, '_microclimate_interpreter') or self._microclimate_interpreter is None:
-            # STUB MODE: Return synthetic but realistic values
-            rh_base = float(np.mean(history_24h[:, 4])) if history_24h.ndim == 2 and history_24h.shape[1] > 4 else 72.4
-            lw_base = float(np.sum(history_24h[:, 5] > 0.5) * 0.25) if history_24h.ndim == 2 and history_24h.shape[1] > 5 else 6.2
             return {
-                'canopy_rh': float(np.clip(rh_base + np.random.normal(0, 2), 0, 100)),
-                'lwd_hours': float(np.clip(lw_base, 0, 24))
+                'canopy_rh': float(np.clip(np.mean(history_24h[:, 4]) + np.random.normal(0, 2), 0, 100)),
+                'lwd_hours': float(np.clip(np.sum(history_24h[:, 5] > 0.5) * 0.25, 0, 24))
             }
         
-        # REAL MODEL MODE
         input_details = self._microclimate_interpreter.get_input_details()
         output_details = self._microclimate_interpreter.get_output_details()
         
-        # Ensure correct shape: (1, 24, 10) → (1, 24, 10) or (1, 240) depending on model
         input_tensor = history_24h.astype(np.float32)
         if input_tensor.ndim == 2:
             input_tensor = input_tensor.reshape(1, *input_tensor.shape)
@@ -701,7 +748,6 @@ class InferenceEngine:
         self._microclimate_interpreter.invoke()
         
         output = self._microclimate_interpreter.get_tensor(output_details[0]['index'])
-        # Output: [canopy_rh, lwd_hours] or similar
         canopy_rh = float(np.clip(output[0][0], 0, 100))
         lwd_hours = float(np.clip(output[0][1], 0, 24))
         
@@ -733,6 +779,12 @@ class InferenceEngine:
         air_temp  = float(sensor_state.get("temp_air", 28.0))
         leaf_wet  = float(sensor_state.get("leaf_wet", sensor_state.get("leaf_wetness", 0.2)))
         vwc       = float(sensor_state.get("vwc", sensor_state.get("VWC", 0.35)))
+
+        if microclimate:
+            if "canopy_rh" in microclimate:
+                rh = float(microclimate["canopy_rh"])
+            if "lwd_hours" in microclimate:
+                leaf_wet = float(np.clip(microclimate["lwd_hours"] / 12.0, 0.0, 1.0))
 
         # Build FusionLite sensor vector (48 features, simplified)
         sensor_vec  = np.zeros(48, dtype=np.float32)
@@ -803,6 +855,16 @@ class InferenceEngine:
             mr_text = "पिकाची स्थिती सामान्य आणि निरोगी आहे."
             en_text = "Crop health is nominal and stable."
 
+        fusion_payload = {
+            "rh": rh,
+            "air_temp": air_temp,
+            "leaf_wetness": leaf_wet,
+            "fungal_risk_score": round(fungal_risk, 3),
+            "fusion_risk_score": round(risk_score, 3),
+        }
+        if microclimate:
+            fusion_payload["microclimate"] = microclimate
+
         return Advisory(
             id=str(uuid.uuid4()),
             urgency=urgency,
@@ -812,13 +874,7 @@ class InferenceEngine:
             next=next_action,
             why=why_reason,
             risk_score=round(risk_score, 4),
-            sensor_fusion={
-                "rh": rh,
-                "air_temp": air_temp,
-                "leaf_wetness": leaf_wet,
-                "fungal_risk_score": round(fungal_risk, 3),
-                "fusion_risk_score": round(risk_score, 3),
-            },
+            sensor_fusion=fusion_payload,
             text={"hi": hi_text, "mr": mr_text, "en": en_text},
         )
 

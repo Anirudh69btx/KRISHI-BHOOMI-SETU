@@ -88,8 +88,28 @@ MODEL_EVENTS_STREAM = StreamConfig(
     description="Persistent stream for ML model registry releases and continual learning triggers",
 )
 
+# ── Segment 05: FARM_SENSOR stream (ingestion pipeline lifecycle)
+FARM_SENSOR_STREAM = StreamConfig(
+    name="FARM_SENSOR",
+    subjects=[
+        "farm.*.sensor.raw",
+        "farm.*.sensor.validated",
+        "farm.*.sensor.anomaly",
+        "farm.*.sensor.buffered",
+        "farm.*.sensor.health",
+        "farm.*.sensor.health.degraded",
+    ],
+    retention=RetentionPolicy.LIMITS,
+    storage=StorageType.FILE,
+    max_msgs=50_000_000,
+    max_age=7 * 24 * 3600,   # 7 days
+    num_replicas=1,
+    description="Sensor telemetry lifecycle: raw → EKF → validated → anomaly → health",
+)
+
 ALL_STREAMS = [
     FARM_EVENTS_STREAM,
+    FARM_SENSOR_STREAM,
     REGION_EVENTS_STREAM,
     MODEL_EVENTS_STREAM,
 ]
@@ -234,6 +254,32 @@ class NATSClient:
         """Publish model registry event to subject: model.registry.updated"""
         subject = "model.registry.updated"
         await self.publish(subject, metadata)
+
+    # ── Segment 05: Ingestion pipeline publishers ───────────────────────────
+
+    async def publish_sensor_validated(
+        self,
+        farm_id: str,
+        batch: dict[str, Any],
+    ) -> None:
+        """Publish validated sensor batch to farm.{farm_id}.sensor.validated"""
+        await self.publish(f"farm.{farm_id}.sensor.validated", batch)
+
+    async def publish_sensor_anomaly(
+        self,
+        farm_id: str,
+        anomaly: dict[str, Any],
+    ) -> None:
+        """Publish anomaly event to farm.{farm_id}.sensor.anomaly"""
+        await self.publish(f"farm.{farm_id}.sensor.anomaly", anomaly)
+
+    async def publish_health_degraded(
+        self,
+        farm_id: str,
+        health_event: dict[str, Any],
+    ) -> None:
+        """Publish health degradation to farm.{farm_id}.sensor.health.degraded"""
+        await self.publish(f"farm.{farm_id}.sensor.health.degraded", health_event)
 
     # ---- Canonical Subscriptions ------------------------------------------
 
@@ -440,4 +486,28 @@ class NATSClient:
             "profiles":       f"farm.{farm_id}.profile.synced",
         }
         return mapping.get(table)
+
+
+# ── Global Singleton & FastAPI Dependency ─────────────────────────────────────
+
+_nats_singleton: NATSClient | None = None
+
+
+async def get_nats() -> NATSClient:
+    """FastAPI dependency to retrieve connected NATSClient singleton."""
+    global _nats_singleton
+    if _nats_singleton is None:
+        from flip_api.config import settings
+        _nats_singleton = NATSClient(nats_url=settings.NATS_URL)
+        try:
+            await _nats_singleton.connect()
+        except Exception as exc:
+            logger.warning("nats_singleton_connect_fallback", error=str(exc))
+    return _nats_singleton
+
+
+def set_nats(client: NATSClient | None) -> None:
+    """Set global NATS singleton (used in main.py lifespan and tests)."""
+    global _nats_singleton
+    _nats_singleton = client
 

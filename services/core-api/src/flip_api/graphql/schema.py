@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Optional
+from typing import Optional, AsyncGenerator
 
 import strawberry
 from strawberry.fastapi import GraphQLRouter
@@ -112,7 +112,7 @@ class Subscription:
     @strawberry.subscription(description="Live sensor readings for a farm")
     async def sensor_stream(
         self, farm_id: uuid.UUID
-    ):  # type: ignore[return]
+    ) -> AsyncGenerator[Optional[SensorReadingType], None]:
         # TODO: Bridge from NATS JetStream subscription
         yield None  # placeholder
 
@@ -124,4 +124,4 @@ schema = strawberry.Schema(
     subscription=Subscription,
 )
 
-graphql_app = GraphQLRouter(schema, graphiql=True)
+graphql_app = GraphQLRouter(schema)

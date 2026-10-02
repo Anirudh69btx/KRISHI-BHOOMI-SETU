@@ -262,8 +262,58 @@ class TestGatewayServices(unittest.TestCase):
                 pushed = await sync.push_outbox()
                 self.assertEqual(pushed, 0)
 
+    def test_vision_result_dict_access(self):
+        vr = VisionResult(crop_type="cotton", primary_condition="early_blight")
+        self.assertEqual(vr["crop"], "cotton")
+        self.assertEqual(vr["condition"], "early_blight")
+        self.assertIn("crop", vr)
+        self.assertIn("condition", vr)
+        self.assertEqual(vr.get("crop"), "cotton")
+        self.assertEqual(vr.get("non_existent", "fallback"), "fallback")
+        d = vr.to_dict()
+        self.assertIsInstance(d, dict)
+        self.assertEqual(d["crop"], "cotton")
+
+    def test_inference_advisory_with_microclimate(self):
+        engine = InferenceEngine(Path("edge/gateway/models"))
+        vision = {"condition": "early_blight", "pest_count": 0, "confidence": 0.85}
+        sensors = {"rh": 60.0, "temp_air": 27.0, "leaf_wet": 0.1}
+        micro = {"canopy_rh": 88.0, "lwd_hours": 8.0}
+        advisory = engine.generate_advisory(vision, sensors, microclimate=micro)
+        self.assertIn("microclimate", advisory.sensor_fusion)
+        self.assertEqual(advisory.sensor_fusion["microclimate"]["canopy_rh"], 88.0)
+        self.assertEqual(advisory.sensor_fusion["rh"], 88.0)
+        self.assertAlmostEqual(advisory.sensor_fusion["leaf_wetness"], 8.0 / 12.0, places=3)
+
+    def test_siren_lifecycle(self):
+        async def _test():
+            siren = SirenAgent(audio_device="default")
+            await siren.start()
+            siren.stop()
+            self.assertFalse(siren.is_playing)
+
+        asyncio.run(_test())
+
+    def test_gateway_lifecycle_and_shutdown(self):
+        async def _test():
+            from edge.gateway.gateway import FLIPGateway, GatewayConfig
+            with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmpdir:
+                cfg = GatewayConfig(
+                    farm_id="test-farm-01",
+                    gateway_id="gw-test",
+                    models_path=Path("edge/gateway/models"),
+                    db_path=Path(tmpdir) / "gw.db",
+                    nats_url="nats://127.0.0.1:4222",
+                )
+                gw = FLIPGateway(cfg)
+                self.assertIsNotNone(gw.siren)
+                self.assertIsNotNone(gw.inference)
+                await gw.shutdown()
+                self.assertFalse(gw.running)
+
         asyncio.run(_test())
 
 
 if __name__ == "__main__":
     unittest.main()
+

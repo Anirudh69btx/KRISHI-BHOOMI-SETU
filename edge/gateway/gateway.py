@@ -16,6 +16,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Any, Optional
 
+_GATEWAY_DIR = Path(__file__).resolve().parent
+if str(_GATEWAY_DIR) not in sys.path:
+    sys.path.insert(0, str(_GATEWAY_DIR))
+
 import paho.mqtt.client as mqtt
 import nats
 from nats.js import JetStreamContext
@@ -268,6 +272,13 @@ class FLIPGateway:
         if self.nats:
             await self.nats.close()
         await self.mqtt_broker.stop()
+        self.inference.shutdown()
+        self.siren.stop()
+        self.voice.running = False
+        self.sync.running = False
+        self.health.running = False
+        self.ota.running = False
+        self.connectivity.running = False
 
 
 def load_config(config_path: Path) -> GatewayConfig:
